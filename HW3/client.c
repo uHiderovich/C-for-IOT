@@ -1,10 +1,3 @@
-/*!
- * Simple chat program (client side).cpp - http://github.com/hassanyf
- * Version - 2.0.1
- *
- * Copyright (c) 2016 Hassan M. Yousuf
- */
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -16,6 +9,36 @@
 #include <unistd.h>
 #include <netdb.h>
 
+void byteStuffing(const char *input, char *output)
+{
+    const char SOP = 0x7E;
+    const char ESC = 0x7D;
+    size_t outputIndex = 0;
+
+    output[outputIndex++] = SOP;
+
+    for (size_t i = 0; input[i] != '\0'; i++)
+    {
+        if (input[i] == 0x7E)
+        {
+            output[outputIndex++] = ESC;
+            output[outputIndex++] = 0x5E;
+        }
+        else if (input[i] == 0x7D)
+        {
+            output[outputIndex++] = ESC;
+            output[outputIndex++] = 0x5D;
+        }
+        else
+        {
+            output[outputIndex++] = input[i];
+        }
+    }
+
+    output[outputIndex++] = SOP;
+    output[outputIndex] = '\0';
+}
+
 int main()
 {
     int client;
@@ -23,13 +46,13 @@ int main()
     bool isExit = false;
     int bufsize = 1024;
     char buffer[bufsize];
-    char* ip = "127.0.0.1";
+    char *ip = "127.0.0.1";
 
     struct sockaddr_in server_addr;
 
     client = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (client < 0) 
+    if (client < 0)
     {
         printf("Error establishing socket...\n");
         exit(1);
@@ -42,11 +65,11 @@ int main()
 
     inet_pton(AF_INET, ip, &server_addr.sin_addr);
 
-    if (connect(client,(struct sockaddr *)&server_addr, sizeof(server_addr)) == 0)
-        printf("=> Connection to the server %s with port number: %d\n",inet_ntoa(server_addr.sin_addr),portNum);
+    if (connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0)
+        printf("=> Connection to the server %s with port number: %d\n", inet_ntoa(server_addr.sin_addr), portNum);
 
-    if (connect(client,(struct sockaddr *)&server_addr, sizeof(server_addr)) == 0)
-        printf("=> Connection to the server port number: %d \n",portNum);
+    if (connect(client, (struct sockaddr *)&server_addr, sizeof(server_addr)) == 0)
+        printf("=> Connection to the server port number: %d \n", portNum);
 
     printf("=> Awaiting confirmation from the server...\n");
     recv(client, buffer, bufsize, 0);
@@ -54,27 +77,33 @@ int main()
 
     printf("\n\n=> Enter # to end the connection\n");
 
-    do {
-		printf("Client: ");
-        do {
-            scanf("%s",buffer);
-            send(client, buffer, bufsize, 0);
-            if (buffer[0] == '#') 
+    do
+    {
+        printf("Client: ");
+        do
+        {
+            scanf("%s", buffer);
+            // send(client, buffer, bufsize, 0);
+            char stuffedBuffer[bufsize * 2];
+            byteStuffing(buffer, stuffedBuffer);
+            send(client, stuffedBuffer, strlen(stuffedBuffer) + 1, 0);
+
+            if (buffer[0] == '#')
             {
                 isExit = true;
             }
-        } while (buffer[0] != '.' &&  buffer[0] != '#');
+        } while (buffer[0] != '.' && buffer[0] != '#');
 
         printf("Server: ");
-        do {
+        do
+        {
             recv(client, buffer, bufsize, 0);
-            printf("%s ",buffer);
-            if (buffer[0] == '#') 
+            printf("%s ", buffer);
+            if (buffer[0] == '#')
             {
-                //~ buffer[0] = '*';
                 isExit = true;
             }
-        } while (buffer[0] != '.' &&  buffer[0] != '#');
+        } while (buffer[0] != '.' && buffer[0] != '#');
         printf("\n");
 
     } while (!isExit);
